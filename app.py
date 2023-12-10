@@ -26,7 +26,7 @@ def start_next_video():
             "-vf",
             "[in]scale=320:240:force_original_aspect_ratio=decrease,pad=320:240:(ow-iw)/2:(oh-ih)/2,drawtext=fontsize=25:fontcolor=white:text='пися палыч тв':x=25:y=25,drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=25:y=55[out]",
             "-hls_time",
-            "0.5",
+            "1",
             "-hls_list_size",
             "15",
             "-f",
@@ -81,4 +81,4 @@ def download_video():
 if __name__ == "__main__":
     refill_queue()
     start_stream()
-    app.run(debug=False)
+    app.run(debug=False, host="0.0.0.0")
