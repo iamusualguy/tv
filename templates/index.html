@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>usual tv</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <script>
+        function skipVideo() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/skip', true);
+            xhr.send();
+        }
+
+        function downloadVideo() {
+            var videoUrl = document.getElementById('videoUrl').value;
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/download', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send('video_url=' + encodeURIComponent(videoUrl));
+        }
+    </script>
+</head>
+
+<body>
+    <h1>📺</h1>
+
+            <video id="video" controls autoplay>
+                <source src="{{ url_for('static', filename='stream.m3u8') }}" type="application/x-mpegURL">
+                Your browser does not support the video tag or the file format of this video.
+            </video>
+
+            <script>
+                if (Hls.isSupported()) {
+                    var video = document.getElementById('video');
+                    var hls = new Hls();
+                    hls.loadSource('{{ url_for('static', filename='stream.m3u8') }}');
+                    hls.attachMedia(video);
+                }
+            </script>
+
+            <br>
+            <button onclick="skipVideo()">Skip</button>
+            <label for="videoUrl">Enter Video URL:</label>
+            <input type="text" id="videoUrl" name="videoUrl">
+            <button onclick="downloadVideo()">Download</button>
+
+            <p>current index: {{ current_index }}</p>
+            <ul>
+                {% for video in video_queue %}
+                <li>{{ video }}</li>
+                {% endfor %}
+            </ul>
+</body>
+
+</html>
