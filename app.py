@@ -1,11 +1,12 @@
 import os
+import shutil
 import subprocess
 from flask import Flask, render_template, request
 from pytube import YouTube
 
 app = Flask(__name__)
 
-video_folder = "../videos"
+video_folder = "video"
 video_queue = []
 current_index = 0
 current_process = None
@@ -39,6 +40,8 @@ def start_next_video():
         ]
         current_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         current_index = (current_index + 1) % len(video_queue)
+        current_process.wait()
+        start_next_video()
 
 def refill_queue():
     global video_queue
@@ -50,6 +53,13 @@ def index():
 
 @app.route("/start")
 def start_stream():
+    # Remove existing "static" folder and its contents if it exists
+    static_folder = "static"
+    if os.path.exists(static_folder):
+        shutil.rmtree(static_folder)
+
+    # Create a new "static" folder
+    os.makedirs(static_folder)
     start_next_video()
     return "Streaming started"
 
@@ -58,7 +68,7 @@ def skip_video():
     global current_process
     if current_process:
         current_process.kill()
-    start_next_video()
+    # start_next_video()
     return "Skipped to the next video"
 
 def download(link):
@@ -80,5 +90,6 @@ def download_video():
 
 if __name__ == "__main__":
     refill_queue()
-    start_stream()
+    # start_stream()
     app.run(debug=False, host="0.0.0.0")
+    start_stream()
