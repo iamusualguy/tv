@@ -24,18 +24,20 @@ def start_next_video():
             os.path.join(video_folder, video_file),
             "-c:v",
             "libx264",
+            "-preset",
+            "ultrafast",  # Use ultrafast preset for faster encoding
             "-vf",
             "[in]scale=320:240:force_original_aspect_ratio=decrease,pad=320:240:(ow-iw)/2:(oh-ih)/2,drawtext=fontsize=25:fontcolor=white:text='пися палыч тв':x=25:y=25,drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=25:y=55[out]",
             "-hls_time",
-            "1",
+            "3",
             "-hls_list_size",
-            "15",
+            "10",
             "-f",
             "hls",
             "-hls_flags",
             "delete_segments+append_list+omit_endlist",
             "-hls_delete_threshold",
-            "9",
+            "10",
             "static/stream.m3u8",
         ]
         current_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
