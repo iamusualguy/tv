@@ -1,8 +1,10 @@
-FROM jrottenberg/ffmpeg:4.1-alpine AS ffmpeg
 FROM node:latest AS node
-# COPY --from=ffmpeg / / 
-COPY --from=node / / 
 WORKDIR /usr/src/app
-COPY index.js ./
-# CMD [ "npm", "install" ]
+RUN mkdir static
+COPY package.json ./
+RUN npm install
+RUN apt update && apt install -y ffmpeg
+COPY . .
+VOLUME /usr/src/app/video
+EXPOSE 3000
 CMD [ "node", "index.js" ]

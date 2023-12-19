@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 
 const app = express();
 
-const videoFolder = '../video';
+const videoFolder = './video';
 const resolution = '640:480';
 const tvName = "usual tv";
 let videoQueue = [];
@@ -49,9 +49,11 @@ function startNextVideo() {
     currentProcess = spawn('ffmpeg', command);
     console.log(currentIndex, videoFile);
     currentProcess.on('close', (code) => {
-    currentIndex = (currentIndex + 1) % videoQueue.length;
-      removeOldTSFiles("./static/");
-      startNextVideo();
+      if (code === 0) {
+        currentIndex = (currentIndex + 1) % videoQueue.length;
+        removeOldTSFiles("./static/");
+        startNextVideo();
+      }
     });
   }
 }
@@ -69,7 +71,7 @@ function start() {
   }
   fs.mkdirSync(staticFolder);
   startNextVideo();
-  
+
 }
 
 app.use('/static', express.static('static'));
@@ -90,7 +92,7 @@ app.listen(3000, () => {
 
 function removeOldTSFiles(directoryPath) {
   const playlistFile = path.join(directoryPath, 'stream.m3u8');
-  
+
   // Read the content of the playlist file
   fs.readFile(playlistFile, 'utf8', (err, data) => {
     if (err) {
