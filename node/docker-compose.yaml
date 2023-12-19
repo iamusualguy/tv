@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  usualtv:
+    image: usualtv:latest
+    volumes:
+      - /home/anton/mediaLibrary/tvVdeos:/usr/src/app/video
+    ports:
+      - "3000:3000"
