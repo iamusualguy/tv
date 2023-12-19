@@ -26,13 +26,15 @@ function startNextVideo() {
     const videoFile = videoQueue[currentIndex];
     const command = [
       '-nostdin',
-      '-re',
+      //'-re',
       '-i',
       path.join(videoFolder, videoFile),
       '-c:v',
       'libx264',
       // "-preset",
       // "ultrafast",
+      "-loglevel",
+      "error", 
       '-vf',
       `[in]scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=25:y=55[out]`,
       '-hls_time',
