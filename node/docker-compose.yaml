@@ -3,6 +3,6 @@ services:
   usualtv:
     image: usualtv:latest
     volumes:
-      - /home/anton/mediaLibrary/tvVdeos:/usr/src/app/video
+      - /home/anton/mediaLibrary/tvVideos:/usr/src/app/video
     ports:
-      - "3000:3000"
+      - "3003:3000"
