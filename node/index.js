@@ -25,6 +25,7 @@ function startNextVideo() {
   if (videoQueue.length > 0) {
     const videoFile = videoQueue[currentIndex];
     const command = [
+      '-nostdin',
       '-re',
       '-i',
       path.join(videoFolder, videoFile),
