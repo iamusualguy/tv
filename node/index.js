@@ -49,11 +49,14 @@ function startNextVideo() {
     currentProcess = spawn('ffmpeg', command);
     console.log(currentIndex, videoFile);
     currentProcess.on('close', (code) => {
-      if (code === 0 || code === 255) {
+      if (code !== 0) {
+        console.log(">>>>", videoFile, code)
+      }
+      // if (code === 0 || code === 255) {
         currentIndex = (currentIndex + 1) % videoQueue.length;
         removeOldTSFiles("./static/");
         startNextVideo();
-      }
+      // }
     });
   }
 }
