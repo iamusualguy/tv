@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 const app = express();
 
 const videoFolder = './video';
-const resolution = '640:480';
+const resolution = '320:240';
 const tvName = "usual tv";
 let videoQueue = [];
 let currentIndex = 0;
@@ -30,8 +30,8 @@ function startNextVideo() {
       path.join(videoFolder, videoFile),
       '-c:v',
       'libx264',
-      "-preset",
-      "ultrafast",
+      // "-preset",
+      // "ultrafast",
       '-vf',
       `[in]scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=25:y=55[out]`,
       '-hls_time',
