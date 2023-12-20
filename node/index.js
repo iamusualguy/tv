@@ -28,25 +28,32 @@ function startNextVideo() {
     const formattedDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
 
     const videoFile = videoQueue[currentIndex];
+    const videoName = path.parse(videoFile).name;
+    const nextVideo = path.parse(videoQueue[(currentIndex +1)%videoQueue.length]).name + " >>";
     const command = [
       '-nostdin',
       '-re',
       '-i',
       path.join(videoFolder, videoFile),
+      '-i',
+      'overlay.png',
       '-c:v',
       'libx264',
       // "-preset",
       // "ultrafast",
       "-loglevel",
       "error",
-      '-vf',
-      `[in]` +
+      '-filter_complex',
       `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
+      'overlay=0:0,' +
       `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-      `drawtext=fontsize=18:fontcolor=white:text='${videoFile}':x=(w-tw)/2:y=h-th-10,` +
-      `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=85:y=55,` +
-      `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55` +
-      `[out]`,
+      `drawtext=fontsize=18:fontcolor=white:text='%{pts\\:hms}':x=(w-tw-10):y=25,` +
+      `drawtext=fontsize=14:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
+      `drawtext=fontsize=16:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
+      `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83,` +
+      `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55[v]`,
+      '-map',
+      '[v]',
       '-hls_time',
       '1',
       '-hls_list_size',
@@ -60,6 +67,11 @@ function startNextVideo() {
       'static/stream.m3u8',
     ];
     currentProcess = spawn('ffmpeg', command);
+
+    currentProcess.stderr.on('data', (data) => {
+      console.error(`FFmpeg error: ${data}`);
+    });
+
     console.log(currentIndex, videoFile);
     currentProcess.on('close', (code) => {
       if (code !== 0) {
@@ -86,7 +98,7 @@ app.set('views', __dirname + '/views');
 app.get('/', (req, res) => {
   const myVariable = 'Hello from Node.js!';
   const items = videoQueue
-  .map((x, idx) => currentIndex === idx ? `> ${idx}: ${x}` :`   ${idx} ${x}`);
+    .map((x, idx) => currentIndex === idx ? `> ${idx}: ${x}` : `   ${idx} ${x}`);
   res.render('index', { items, myVariable });
 });
 
