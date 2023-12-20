@@ -48,8 +48,8 @@ function startNextVideo() {
       'overlay=0:0,' +
       `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
       `drawtext=fontsize=18:fontcolor=white:text='%{pts\\:hms}':x=(w-tw-10):y=25,` +
-      `drawtext=fontsize=14:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
-      `drawtext=fontsize=16:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
+      `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
+      `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
       `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83,` +
       `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55[v]`,
       '-map',
