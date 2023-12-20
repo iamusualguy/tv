@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 
 const app = express();
 
-const videoFolder = './video';
+const videoFolder = '../video';
 const resolution = '720:480';
 const tvName = "usual tv";
 let videoQueue = [];
@@ -29,18 +29,18 @@ function startNextVideo() {
 
     const videoFile = videoQueue[currentIndex];
     const videoName = path.parse(videoFile).name;
-    const nextVideo = path.parse(videoQueue[(currentIndex +1)%videoQueue.length]).name + " >>";
+    const nextVideo = path.parse(videoQueue[(currentIndex + 1) % videoQueue.length]).name + " >>";
     const command = [
       '-nostdin',
       '-re',
       '-i',
       path.join(videoFolder, videoFile),
-      '-i',
-      'overlay.png',
+       '-i',
+       'overlay.png',
       '-c:v',
       'libx264',
-      // "-preset",
-      // "ultrafast",
+      '-c:a',
+      'copy', // Add this line to copy the audio codec
       "-loglevel",
       "error",
       '-filter_complex',
@@ -54,6 +54,8 @@ function startNextVideo() {
       `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55[v]`,
       '-map',
       '[v]',
+      '-map',
+      '0:a',
       '-hls_time',
       '1',
       '-hls_list_size',
