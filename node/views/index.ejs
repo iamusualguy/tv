@@ -8,6 +8,13 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
     <script>
+        function refill() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/refill', true);
+            xhr.send();
+        }
+
+
         function skipVideo() {
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/skip', true);
@@ -36,8 +43,10 @@
 
     <br>
     <br>
-
+<div style="font-size: 3em;">
     <button onclick="skipVideo()">Skip</button>
+    <button onclick="refill()">Refill</button>
+</div>
 
     <br>
     <hr>

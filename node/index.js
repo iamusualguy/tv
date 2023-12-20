@@ -109,6 +109,12 @@ app.get('/skip', (req, res) => {
   res.send('Skipped to the next video');
 });
 
+app.get('/refill', (req, res) => {
+  refillQueue();
+  res.send('refill the queue');
+});
+
+
 app.listen(3000, () => {
   refillQueue();
   console.log('Server running on port 3000');
