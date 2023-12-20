@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 const app = express();
 
 const videoFolder = './video';
-const resolution = '320:240';
+const resolution = '720:480';
 const tvName = "usual tv";
 let videoQueue = [];
 let currentIndex = 0;
@@ -15,7 +15,9 @@ let currentProcess = null;
 
 function refillQueue() {
   console.log("refill queue");
-  videoQueue = fs.readdirSync(videoFolder).filter(file => file.endsWith('.mp4'));
+  videoQueue = fs.readdirSync(videoFolder)
+    .filter(file => file.endsWith('.mp4'))
+    .sort(() => Math.random() > 0.5 ? 1 : -1);
 }
 
 function startNextVideo() {
@@ -23,6 +25,8 @@ function startNextVideo() {
     refillQueue();
   }
   if (videoQueue.length > 0) {
+    const formattedDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+
     const videoFile = videoQueue[currentIndex];
     const command = [
       '-nostdin',
@@ -34,9 +38,15 @@ function startNextVideo() {
       // "-preset",
       // "ultrafast",
       "-loglevel",
-      "error", 
+      "error",
       '-vf',
-      `[in]scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=25:y=55[out]`,
+      `[in]` +
+      `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
+      `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
+      `drawtext=fontsize=18:fontcolor=white:text='${videoFile}':x=(w-tw)/2:y=h-th-10,`+
+      `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=85:y=55,`+
+      `drawtext=fontsize=18:fontcolor=white:text='${formattedDate+" -"}':x=25:y=55`+
+      `[out]`,      
       '-hls_time',
       '1',
       '-hls_list_size',
@@ -56,9 +66,9 @@ function startNextVideo() {
         console.log(">>>>", videoFile, code)
       }
       // if (code === 0 || code === 255) {
-        currentIndex = (currentIndex + 1) % videoQueue.length;
-        removeOldTSFiles("./static/");
-        startNextVideo();
+      currentIndex = (currentIndex + 1) % videoQueue.length;
+      removeOldTSFiles("./static/");
+      startNextVideo();
       // }
     });
   }
