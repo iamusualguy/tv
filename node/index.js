@@ -43,10 +43,10 @@ function startNextVideo() {
       `[in]` +
       `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
       `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-      `drawtext=fontsize=18:fontcolor=white:text='${videoFile}':x=(w-tw)/2:y=h-th-10,`+
-      `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=85:y=55,`+
-      `drawtext=fontsize=18:fontcolor=white:text='${formattedDate+" -"}':x=25:y=55`+
-      `[out]`,      
+      `drawtext=fontsize=18:fontcolor=white:text='${videoFile}':x=(w-tw)/2:y=h-th-10,` +
+      `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=85:y=55,` +
+      `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55` +
+      `[out]`,
       '-hls_time',
       '1',
       '-hls_list_size',
@@ -76,9 +76,19 @@ function startNextVideo() {
 
 
 
+// app.get('/', (req, res) => {
+//   res.sendFile(__dirname + '/index.html');
+// })
+
+app.set('view engine', 'ejs');
+app.set('views', __dirname + '/views');
+
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
-})
+  const myVariable = 'Hello from Node.js!';
+  const items = videoQueue
+  .map((x, idx) => currentIndex === idx ? `> ${idx}: ${x}` :`   ${idx} ${x}`);
+  res.render('index', { items, myVariable });
+});
 
 function start() {
   const staticFolder = 'static';

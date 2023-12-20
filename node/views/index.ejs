@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>usual tv</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <script>
+        function skipVideo() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/skip', true);
+            xhr.send();
+        }
+    </script>
+</head>
+
+<body>
+
+    <h1>📺</h1>
+
+    <video id="video" controls autoplay>
+        <source src="static/stream.m3u8" type="application/x-mpegURL">
+        Your browser does not support the video tag or the file format of this video.
+    </video>
+
+    <script>
+        if (Hls.isSupported()) {
+            var video = document.getElementById('video');
+            var hls = new Hls();
+            hls.loadSource('static/stream.m3u8');
+            hls.attachMedia(video);
+        }
+    </script>
+
+    <br>
+    <br>
+
+    <button onclick="skipVideo()">Skip</button>
+
+    <br>
+    <hr>
+
+    <ul>
+        <% items.forEach(function(item) { %>
+            <li><%= item %></li>
+        <% }); %>
+    </ul>
+
+    <!-- <p>: <%= myVariable %> </p> -->
+</body>
+
+</html>
