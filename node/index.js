@@ -1,17 +1,25 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 
 const app = express();
 
 const videoFolder = './video';
+const adsVideoFolder = './video/ads';
+const adsFreq = 2; // how often to show ads
 const resolution = '720:480';
 const tvName = "usual tv";
 let videoQueue = [];
+let adsQueue = [];
 let currentIndex = 0;
 let currentProcess = null;
 
+function refillAds() {
+  console.log("refill ads");
+  adsQueue = fs.readdirSync(adsVideoFolder)
+    .filter(file => file.endsWith('.mp4'));
+}
 
 function refillQueue() {
   console.log("refill queue");
@@ -20,54 +28,73 @@ function refillQueue() {
     .sort(() => Math.random() > 0.5 ? 1 : -1);
 }
 
-function startNextVideo() {
+function getFfmpegCommand(videoPath, videoName, nextVideo) {
+  const formattedDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+
+  return [
+    '-nostdin',
+    '-re',
+    '-i',
+    videoPath,
+    '-i',
+    'overlay.png',
+    '-i',
+    'weather.png',
+    '-c:v',
+    'libx264',
+    '-c:a',
+    'copy', // Add this line to copy the audio codec
+    "-loglevel",
+    "error",
+    '-filter_complex',
+    `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
+    'overlay=0:0,' +
+    'overlay=(w+90):(-30),' +
+    `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
+    `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(10):y=h-th-2,` +
+    `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
+    `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
+    `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83,` +
+    `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55[v]`,
+    '-map',
+    '[v]',
+    '-map',
+    '0:a',
+    '-hls_time',
+    '1',
+    '-hls_list_size',
+    '5',
+    '-f',
+    'hls',
+    '-segment_wrap',
+    '6',
+    '-hls_flags',
+    'delete_segments+append_list+omit_endlist',
+    'static/stream.m3u8',
+  ];
+}
+
+function startNextVideo(showAd = false) {
   if (videoQueue.length === 0 || currentIndex == 0) {
     refillQueue();
   }
   if (videoQueue.length > 0) {
-    const formattedDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
 
-    const videoFile = videoQueue[currentIndex];
-    const videoName = path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
+    let videoFile = videoQueue[currentIndex];
+    let videoPath = path.join(videoFolder, videoFile);
+
+    let videoName = path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
+    if (showAd) {
+      const randomIndex = Math.floor(Math.random() * adsQueue.length);
+      videoFile = adsQueue[randomIndex];
+      console.log("show add: ", videoFile);
+      videoPath = path.join(adsVideoFolder, videoFile);
+      videoName = "[AD] "+ path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '')+ " [AD]";
+    }
+
     const nextVideo = path.parse(videoQueue[(currentIndex + 1) % videoQueue.length]).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '') + " >>";
-    const command = [
-      '-nostdin',
-      '-re',
-      '-i',
-      path.join(videoFolder, videoFile),
-       '-i',
-       'overlay.png',
-      '-c:v',
-      'libx264',
-      '-c:a',
-      'copy', // Add this line to copy the audio codec
-      "-loglevel",
-      "error",
-      '-filter_complex',
-      `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
-      'overlay=0:0,' +
-      `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-      `drawtext=fontsize=18:fontcolor=white:text='%{pts\\:hms}':x=(w-tw-10):y=25,` +
-      `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
-      `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
-      `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83,` +
-      `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55[v]`,
-      '-map',
-      '[v]',
-      '-map',
-      '0:a',
-      '-hls_time',
-      '1',
-      '-hls_list_size',
-      '5',
-      '-f',
-      'hls',
-      '-segment_wrap',
-      '6',
-      '-hls_flags',
-      'delete_segments+append_list+omit_endlist',
-      'static/stream.m3u8',
-    ];
+
+    const command = getFfmpegCommand(videoPath, videoName, nextVideo);
     currentProcess = spawn('ffmpeg', command);
 
     currentProcess.stderr.on('data', (data) => {
@@ -79,10 +106,14 @@ function startNextVideo() {
       if (code !== 0) {
         console.log(">>>>", videoFile, code)
       }
-      // if (code === 0 || code === 255) {
-      currentIndex = (currentIndex + 1) % videoQueue.length;
       removeOldTSFiles("./static/");
-      startNextVideo();
+      // if (code === 0 || code === 255) {
+      if (showAd !== true && currentIndex % adsFreq == 0) {
+        startNextVideo(true);
+      } else {
+        currentIndex = (currentIndex + 1) % videoQueue.length;
+        startNextVideo();
+      }
       // }
     });
   }
@@ -130,6 +161,8 @@ app.get('/refill', (req, res) => {
 
 
 app.listen(3000, () => {
+  refillAds();
+  generateWeatherImage();
   refillQueue();
   console.log('Server running on port 3000');
   start();
@@ -175,5 +208,22 @@ function removeOldTSFiles(directoryPath) {
         });
       });
     });
+  });
+}
+
+
+function generateWeatherImage(cityName = "Amsterdam") {
+  const command = `curl -s "https://wttr.in/${cityName}?0T" | convert -background transparent -fill lightblue -pointsize 17 label:@- weather.png`;
+
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error: ${error.message}`);
+      return;
+    }
+    if (stderr) {
+      console.error(`stderr: ${stderr}`);
+      return;
+    }
+    console.log(`Weather image for ${cityName} generated successfully!`);
   });
 }
