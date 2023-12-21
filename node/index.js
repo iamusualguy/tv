@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 
 const app = express();
 
-const videoFolder = '../video';
+const videoFolder = './video';
 const resolution = '720:480';
 const tvName = "usual tv";
 let videoQueue = [];
@@ -28,8 +28,8 @@ function startNextVideo() {
     const formattedDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
 
     const videoFile = videoQueue[currentIndex];
-    const videoName = path.parse(videoFile).name;
-    const nextVideo = path.parse(videoQueue[(currentIndex + 1) % videoQueue.length]).name + " >>";
+    const videoName = path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
+    const nextVideo = path.parse(videoQueue[(currentIndex + 1) % videoQueue.length]).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '') + " >>";
     const command = [
       '-nostdin',
       '-re',
