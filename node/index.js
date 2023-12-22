@@ -234,7 +234,7 @@ function getWeatherString() {
       return;
     }
     console.log(`stdout: ${stdout}`);
-    fs.writeFile('weather.txt', stdout, (err) => {
+    fs.writeFile('weather.txt', stdout.replace(/\\/g, "\\\\"), (err) => {
       if (err) throw err;
       console.log('Weather data saved to weather.txt');
     });
