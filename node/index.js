@@ -15,6 +15,8 @@ let adsQueue = [];
 let currentIndex = 0;
 let currentProcess = null;
 
+let weatherStr = "weather";
+
 function refillAds() {
   console.log("refill ads");
   adsQueue = fs.readdirSync(adsVideoFolder)
@@ -23,6 +25,7 @@ function refillAds() {
 
 function refillQueue() {
   console.log("refill queue");
+  getWeatherString();
   videoQueue = fs.readdirSync(videoFolder)
     .filter(file => file.endsWith('.mp4'))
     .sort(() => Math.random() > 0.5 ? 1 : -1);
@@ -38,8 +41,8 @@ function getFfmpegCommand(videoPath, videoName, nextVideo) {
     videoPath,
     '-i',
     'overlay.png',
-    '-i',
-    'weather.png',
+    // '-i',
+    // 'weather.png',
     '-c:v',
     'libx264',
     '-c:a',
@@ -49,8 +52,9 @@ function getFfmpegCommand(videoPath, videoName, nextVideo) {
     '-filter_complex',
     `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
     'overlay=0:0,' +
-    'overlay=(w+90):(-30),' +
+    // 'overlay=(w+90):(-30),' +
     `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
+    `drawtext=fontsize=18:fontcolor=white:text='${weatherStr}':x=w-tw:y=(-35),` +
     `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(10):y=h-th-2,` +
     `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
     `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
@@ -75,7 +79,7 @@ function getFfmpegCommand(videoPath, videoName, nextVideo) {
 }
 
 function startNextVideo(showAd = false) {
-  if (videoQueue.length === 0 || currentIndex == 0) {
+  if (videoQueue.length === 0) {
     refillQueue();
   }
   if (videoQueue.length > 0) {
@@ -89,7 +93,7 @@ function startNextVideo(showAd = false) {
       videoFile = adsQueue[randomIndex];
       console.log("show add: ", videoFile);
       videoPath = path.join(adsVideoFolder, videoFile);
-      videoName = "[AD] "+ path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '')+ " [AD]";
+      videoName = "[AD] " + path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '') + " [AD]";
     }
 
     const nextVideo = path.parse(videoQueue[(currentIndex + 1) % videoQueue.length]).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '') + " >>";
@@ -147,6 +151,16 @@ function start() {
 
 app.use('/static', express.static('static'));
 
+app.get('/next/:number', (req, res) => {
+  serverVariable = parseInt(req.params.number);
+  currentIndex = serverVariable - 1;
+  console.log("next track is", currentIndex + 1, videoQueue[currentIndex + 1]);
+  if (currentProcess) {
+    currentProcess.kill();
+  }
+  res.send('next track is : ' + serverVariable);
+})
+
 app.get('/skip', (req, res) => {
   if (currentProcess) {
     currentProcess.kill();
@@ -162,7 +176,8 @@ app.get('/refill', (req, res) => {
 
 app.listen(3000, () => {
   refillAds();
-  generateWeatherImage();
+  // generateWeatherImage();
+  // getWeatherString();
   refillQueue();
   console.log('Server running on port 3000');
   start();
@@ -211,19 +226,14 @@ function removeOldTSFiles(directoryPath) {
   });
 }
 
-
-function generateWeatherImage(cityName = "Amsterdam") {
-  const command = `curl -s "https://wttr.in/${cityName}?0T" | convert -background transparent -fill lightblue -pointsize 17 label:@- weather.png`;
-
-  exec(command, (error, stdout, stderr) => {
+function getWeatherString() {
+  const curlCommand = 'curl -s https://wttr.in/Amsterdam?T0';
+  exec(curlCommand, (error, stdout, stderr) => {
     if (error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`exec error: ${error}`);
       return;
     }
-    if (stderr) {
-      console.error(`stderr: ${stderr}`);
-      return;
-    }
-    console.log(`Weather image for ${cityName} generated successfully!`);
+    console.log(`stdout: ${stdout}`);
+    weatherStr = stdout;
   });
 }

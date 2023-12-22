@@ -20,6 +20,12 @@
             xhr.open('GET', '/skip', true);
             xhr.send();
         }
+
+        function next(idx) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/next/'+idx, true);
+            xhr.send();
+        }
     </script>
 </head>
 
@@ -52,10 +58,18 @@
     <hr>
 
     <ul>
+        <% items.forEach(function(item, idx) { %>
+            <li>
+                <button onclick="next(<%= idx %>)">play</button>
+                <%= item %>
+            </li>
+        <% }); %>
+    </ul>
+    <!-- <ul>
         <% items.forEach(function(item) { %>
             <li><%= item %></li>
         <% }); %>
-    </ul>
+    </ul> -->
 
     <!-- <p>: <%= myVariable %> </p> -->
 </body>
