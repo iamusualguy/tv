@@ -1,0 +1,7 @@
+Weather report: Amsterdam
+
+     \  /       Partly cloudy
+   _ /"".-.     +11(8) °C      
+     \_(   ).   → 52 km/h      
+     /(___(__)  10 km          
+                0.0 mm         
