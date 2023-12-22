@@ -2,6 +2,8 @@ version: '3.8'
 services:
   usualtv:
     image: usualtv:latest
+    environment:
+      - TZ=Europe/Amsterdam
     volumes:
       - /home/anton/mediaLibrary/tvVideos:/usr/src/app/video
     ports:
