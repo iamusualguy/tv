@@ -25,7 +25,7 @@ function refillAds() {
 
 function refillQueue() {
   console.log("refill queue");
-  getWeatherString();
+ // getWeatherString();
   videoQueue = fs.readdirSync(videoFolder)
     .filter(file => file.endsWith('.mp4'))
     .sort(() => Math.random() > 0.5 ? 1 : -1);
@@ -54,7 +54,7 @@ function getFfmpegCommand(videoPath, videoName, nextVideo) {
     'overlay=0:0,' +
     // 'overlay=(w+90):(-30),' +
     `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-    `drawtext=fontsize=18:fontcolor=white:text='${weatherStr}':x=w-tw:y=(-35),` +
+  //  `drawtext=fontsize=18:fontcolor=white:text='${weatherStr}':x=w-tw:y=(-35),` +
     `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(10):y=h-th-2,` +
     `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
     `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
