@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>usual tv</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
     <script>
@@ -23,7 +23,7 @@
 
         function next(idx) {
             var xhr = new XMLHttpRequest();
-            xhr.open('GET', '/next/'+idx, true);
+            xhr.open('GET', '/next/' + idx, true);
             xhr.send();
         }
     </script>
@@ -33,14 +33,33 @@
 
     <h1>📺</h1>
 
-    <video id="video" controls autoplay>
+    <video id="video" controls autoplay style="width: 90vw;">
         <source src="static/stream.m3u8" type="application/x-mpegURL">
         Your browser does not support the video tag or the file format of this video.
     </video>
+    <button id="pipButton">Toggle PiP</button>
+    <script>
+        if ('pictureInPictureEnabled' in document) {
+            const video = document.getElementById('video');
+            const button = document.getElementById('pipButton');
+          
+
+            button.addEventListener('click', () => {
+                if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture();
+                } else {
+                    video.requestPictureInPicture();
+                }
+            });
+        } else {
+            // console.log("fail")
+            // Handle the case when the browser does not support PiP
+        }
+    </script>
 
     <script>
         if (Hls.isSupported()) {
-            var video = document.getElementById('video');
+            // var video = document.getElementById('video');
             var hls = new Hls();
             hls.loadSource('static/stream.m3u8');
             hls.attachMedia(video);
@@ -49,22 +68,25 @@
 
     <br>
     <br>
-<div style="font-size: 3em;">
-    <button onclick="skipVideo()">Skip</button>
-    <button onclick="refill()">Refill</button>
-</div>
+    <details>
+        <summary>Controls</summary>
+        <div style="font-size: 3em;">
+            <button onclick="skipVideo()">Skip</button>
+            <button onclick="refill()">Refill</button>
+        </div>
 
-    <br>
-    <hr>
+        <br>
+        <hr>
 
-    <ul>
-        <% items.forEach(function(item, idx) { %>
-            <li>
-                <button onclick="next(<%= idx %>)">play</button>
-                <%= item %>
-            </li>
-        <% }); %>
-    </ul>
+        <ul>
+            <% items.forEach(function(item, idx) { %>
+                <li>
+                    <button onclick="next(<%= idx %>)">play</button>
+                    <%= item %>
+                </li>
+                <% }); %>
+        </ul>
+    </details>
     <!-- <ul>
         <% items.forEach(function(item) { %>
             <li><%= item %></li>

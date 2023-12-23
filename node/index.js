@@ -5,7 +5,7 @@ const { spawn, exec } = require('child_process');
 
 const app = express();
 
-const videoFolder = './video';
+const videoFolder = './video/music';
 const adsVideoFolder = './video/ads';
 const adsFreq = 2; // how often to show ads
 const resolution = '720:480';
@@ -15,18 +15,34 @@ let adsQueue = [];
 let currentIndex = 0;
 let currentProcess = null;
 
-let weatherStr = "weather";
-
 function refillAds() {
   console.log("refill ads");
   adsQueue = fs.readdirSync(adsVideoFolder)
     .filter(file => file.endsWith('.mp4'));
 }
 
+function getFilesRecursively(dir, fileList = []) {
+  const files = fs.readdirSync(dir);
+
+  files.forEach(file => {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+
+    if (stat.isDirectory()) {
+      getFilesRecursively(filePath, fileList);
+    } else {
+      fileList.push(filePath);
+    }
+  });
+
+  return fileList;
+}
+
 function refillQueue() {
   console.log("refill queue");
- getWeatherString();
-  videoQueue = fs.readdirSync(videoFolder)
+  getWeatherString();
+
+  videoQueue = getFilesRecursively(videoFolder)
     .filter(file => file.endsWith('.mp4'))
     .sort(() => Math.random() > 0.5 ? 1 : -1);
 }
@@ -54,7 +70,7 @@ function getFfmpegCommand(videoPath, videoName, nextVideo) {
     'overlay=0:0,' +
     // 'overlay=(w+90):(-30),' +
     `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-   `drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
+    `drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
     `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(10):y=h-th-2,` +
     `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
     `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
@@ -85,7 +101,7 @@ function startNextVideo(showAd = false) {
   if (videoQueue.length > 0) {
 
     let videoFile = videoQueue[currentIndex];
-    let videoPath = path.join(videoFolder, videoFile);
+    let videoPath = path.join(videoFile);
 
     let videoName = path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
     if (showAd) {
@@ -138,6 +154,13 @@ app.get('/', (req, res) => {
     .map((x, idx) => currentIndex === idx ? `> ${idx}: ${x}` : `   ${idx} ${x}`);
   res.render('index', { items, myVariable });
 });
+
+app.get('/c', (req, res) => {
+  const items = videoQueue
+    .map((x, idx) => currentIndex === idx ? `> ${idx}: ${x}` : `   ${idx} ${x}`);
+  res.render('control', { items });
+});
+
 
 function start() {
   const staticFolder = 'static';

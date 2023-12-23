@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>usual tv - control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script>
+        function refill() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/refill', true);
+            xhr.send();
+        }
+
+
+        function skipVideo() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/skip', true);
+            xhr.send();
+        }
+
+        function next(idx) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/next/' + idx, true);
+            xhr.send();
+        }
+    </script>
+</head>
+
+<body>
+
+    <h1>📺</h1>
+
+    <br>
+    <div style="font-size: 3em;">
+        <button onclick="skipVideo()">Skip</button>
+        <button onclick="refill()">Refill</button>
+    </div>
+
+    <br>
+    <hr>
+
+    <ul>
+        <% items.forEach(function(item, idx) { %>
+            <li>
+                <button onclick="next(<%= idx %>)">play</button>
+                <%= item %>
+            </li>
+            <% }); %>
+    </ul>
+</body>
+
+</html>
