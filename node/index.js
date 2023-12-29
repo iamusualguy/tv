@@ -145,7 +145,11 @@ app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
 
 app.get("/stick",(req,res) => {
-  res.send(videoQueue[currentIndex] + " , " + videoQueue[currentIndex+1] ?? " ");
+  const status = {
+    current: videoQueue[currentIndex],
+    next: videoQueue[currentIndex+1] ?? " "
+  }
+  res.send(status);
 })
 
 app.get('/', (req, res) => {
