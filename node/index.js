@@ -7,7 +7,8 @@ const app = express();
 
 const videoFolder = './video/music';
 const adsVideoFolder = './video/ads';
-const adsFreq = 2; // how often to show ads
+const series = './video/series';
+const adsFreq = 2; // how often to show ads 
 const resolution = '720:480';
 const tvName = "usual tv";
 let videoQueue = [];
@@ -38,11 +39,11 @@ function getFilesRecursively(dir, fileList = []) {
   return fileList;
 }
 
-function refillQueue() {
-  console.log("refill queue");
+function refillQueue(folder = videoFolder) {
+  console.log("refill queue: ", folder);
   getWeatherString();
-
-  videoQueue = getFilesRecursively(videoFolder)
+  currentIndex = 0;
+  videoQueue = getFilesRecursively(folder)
     .filter(file => file.endsWith('.mp4'))
     .sort(() => Math.random() > 0.5 ? 1 : -1);
 }
@@ -140,16 +141,15 @@ function startNextVideo(showAd = false) {
 }
 
 
-
-// app.get('/', (req, res) => {
-//   res.sendFile(__dirname + '/index.html');
-// })
-
 app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
 
+app.get("/stick",(req,res) => {
+  res.send(videoQueue[currentIndex] + " , " + videoQueue[currentIndex+1] ?? " ");
+})
+
 app.get('/', (req, res) => {
-  const myVariable = 'Hello from Node.js!';
+  const myVariable = 'idx';
   const items = videoQueue
     .map((x, idx) => currentIndex === idx ? `> ${idx}: ${x}` : `   ${idx} ${x}`);
   res.render('index', { items, myVariable });
@@ -169,7 +169,6 @@ function start() {
   }
   fs.mkdirSync(staticFolder);
   startNextVideo();
-
 }
 
 app.use('/static', express.static('static'));
@@ -177,11 +176,10 @@ app.use('/static', express.static('static'));
 app.get('/next/:number', (req, res) => {
   serverVariable = parseInt(req.params.number);
   currentIndex = serverVariable - 1;
-  console.log("next track is", currentIndex + 1, videoQueue[currentIndex + 1]);
+  console.log("next track is",  serverVariable, videoQueue[serverVariable]);
   if (currentProcess) {
     currentProcess.kill();
   }
-  res.send('next track is : ' + serverVariable);
 })
 
 app.get('/skip', (req, res) => {
