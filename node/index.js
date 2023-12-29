@@ -145,9 +145,10 @@ app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
 
 app.get("/stick",(req,res) => {
+ const getName = (file) => path.parse(file).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
   const status = {
-    current: videoQueue[currentIndex],
-    next: videoQueue[currentIndex+1] ?? " "
+    current: getName(videoQueue[currentIndex]),
+    next: getName(videoQueue[currentIndex+1] ?? " ")
   }
   res.send(status);
 })
