@@ -48,52 +48,7 @@ function refillQueue(folder = videoFolder) {
     .sort(() => Math.random() > 0.5 ? 1 : -1);
 }
 
-function getFfmpegCommand(videoPath, videoName, nextVideo) {
-  const formattedDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
 
-  return [
-    '-nostdin',
-    '-re',
-    '-i',
-    videoPath,
-    '-i',
-    'overlay.png',
-    // '-i',
-    // 'weather.png',
-    '-c:v',
-    'libx264',
-    '-c:a',
-    'copy', // Add this line to copy the audio codec
-    "-loglevel",
-    "error",
-    '-filter_complex',
-    `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
-    'overlay=0:0,' +
-    // 'overlay=(w+90):(-30),' +
-    `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-    `drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
-    `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(10):y=h-th-2,` +
-    `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
-    `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
-    `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83,` +
-    `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55[v]`,
-    '-map',
-    '[v]',
-    '-map',
-    '0:a',
-    '-hls_time',
-    '1',
-    '-hls_list_size',
-    '5',
-    '-f',
-    'hls',
-    '-segment_wrap',
-    '6',
-    '-hls_flags',
-    'delete_segments+append_list+omit_endlist',
-    'static/stream.m3u8',
-  ];
-}
 
 function startNextVideo(showAd = false) {
   if (videoQueue.length === 0) {
@@ -125,30 +80,38 @@ function startNextVideo(showAd = false) {
     console.log(currentIndex, videoFile);
     currentProcess.on('close', (code) => {
       if (code !== 0) {
-        console.log(">>>>", videoFile, code)
+        console.log(">> SKIP >>", videoFile, code)
       }
       removeOldTSFiles("./static/");
-      // if (code === 0 || code === 255) {
+
       if (showAd !== true && currentIndex % adsFreq == 0) {
         startNextVideo(true);
       } else {
         currentIndex = (currentIndex + 1) % videoQueue.length;
         startNextVideo();
       }
-      // }
     });
   }
+}
+
+function start() {
+  const staticFolder = 'static';
+  if (fs.existsSync(staticFolder)) {
+    fs.rmSync(staticFolder, { recursive: true });
+  }
+  fs.mkdirSync(staticFolder);
+  startNextVideo();
 }
 
 
 app.set('view engine', 'ejs');
 app.set('views', __dirname + '/views');
 
-app.get("/stick",(req,res) => {
- const getName = (file) => path.parse(file).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
+app.get("/stick", (req, res) => {
+  const getName = (file) => path.parse(file).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
   const status = {
     current: getName(videoQueue[currentIndex]),
-    next: getName(videoQueue[currentIndex+1] ?? " ")
+    next: getName(videoQueue[currentIndex + 1] ?? " ")
   }
   res.send(status);
 })
@@ -166,22 +129,13 @@ app.get('/c', (req, res) => {
   res.render('control', { items });
 });
 
-
-function start() {
-  const staticFolder = 'static';
-  if (fs.existsSync(staticFolder)) {
-    fs.rmSync(staticFolder, { recursive: true });
-  }
-  fs.mkdirSync(staticFolder);
-  startNextVideo();
-}
-
+// serve stream
 app.use('/static', express.static('static'));
 
 app.get('/next/:number', (req, res) => {
   serverVariable = parseInt(req.params.number);
   currentIndex = serverVariable - 1;
-  console.log("next track is",  serverVariable, videoQueue[serverVariable]);
+  console.log("next track is", serverVariable, videoQueue[serverVariable]);
   if (currentProcess) {
     currentProcess.kill();
   }
@@ -199,15 +153,14 @@ app.get('/refill', (req, res) => {
   res.send('refill the queue');
 });
 
-
 app.listen(3000, () => {
   refillAds();
-  // generateWeatherImage();
-  // getWeatherString();
   refillQueue();
   console.log('Server running on port 3000');
   start();
 });
+
+// ----------- garbage ⬇️
 
 
 function removeOldTSFiles(directoryPath) {
@@ -265,4 +218,52 @@ function getWeatherString() {
       console.log('Weather data saved to weather.txt');
     });
   });
+}
+
+
+function getFfmpegCommand(videoPath, videoName, nextVideo) {
+  const formattedDate = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+
+  return [
+    '-nostdin',
+    '-re',
+    '-i',
+    videoPath,
+    '-i',
+    'overlay.png',
+    // '-i',
+    // 'weather.png',
+    '-c:v',
+    'libx264',
+    '-c:a',
+    'copy', // Add this line to copy the audio codec
+    "-loglevel",
+    "error",
+    '-filter_complex',
+    `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
+    'overlay=0:0,' +
+    // 'overlay=(w+90):(-30),' +
+    `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
+    `drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
+    `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(10):y=h-th-2,` +
+    `drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
+    `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
+    `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83,` +
+    `drawtext=fontsize=18:fontcolor=white:text='${formattedDate + ""}':x=15:y=55[v]`,
+    '-map',
+    '[v]',
+    '-map',
+    '0:a',
+    '-hls_time',
+    '0.25',
+    '-hls_list_size',
+    '5',
+    '-f',
+    'hls',
+    '-segment_wrap',
+    '6',
+    '-hls_flags',
+    'delete_segments+append_list+omit_endlist',
+    'static/stream.m3u8',
+  ];
 }

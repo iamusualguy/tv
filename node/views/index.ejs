@@ -33,10 +33,11 @@
 
     <h1>📺</h1>
 
-    <video id="video" controls autoplay style="width: 90vw;">
+    <video id="video" style="width: 90vw;" controls webkit-playsinline>
         <source src="static/stream.m3u8" type="application/x-mpegURL">
         Your browser does not support the video tag or the file format of this video.
     </video>
+    <br>
     <button id="pipButton">Toggle PiP</button>
     <script>
         if ('pictureInPictureEnabled' in document) {
@@ -48,6 +49,7 @@
                 if (document.pictureInPictureElement) {
                     document.exitPictureInPicture();
                 } else {
+                    video.play();
                     video.requestPictureInPicture();
                 }
             });
