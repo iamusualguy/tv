@@ -5,7 +5,7 @@ const { spawn, exec } = require('child_process');
 
 const app = express();
 
-const videoFolder = './video/music';
+const videoFolder = './video';
 const adsVideoFolder = './video/ads';
 const series = './video/series';
 const adsFreq = 2; // how often to show ads 
@@ -16,27 +16,128 @@ let adsQueue = [];
 let currentIndex = 0;
 let currentProcess = null;
 
+let queue = [];
+let currentVideoCount = 0;
+
+async function getVideosFromFolder(folder) {
+  const fileExtensionRegex = /\.(mp4|webm)$/i;
+
+  const newVideoQueue = getFilesRecursively(folder)
+    .filter(file => fileExtensionRegex.test(file))
+    .map(async (video) => {
+      const duration = (await getVideoDuration(video))
+      let videoName = path.parse(video).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
+      const folderName = path.basename(path.dirname(video));
+      return {
+        path: video,
+        name: videoName,
+        duration: duration,
+        folderName: folderName,
+      }
+    });
+
+
+  return await Promise.all(newVideoQueue);
+}
+
+async function refillVideosFromFolder(folder = videoFolder) {
+  console.log("start refill folder: ", folder);
+  currentVideoCount = 0;
+  queue = await getVideosFromFolder(folder);
+  console.log("hehehehehehehe", queue);
+}
+
+app.listen(3001, async () => {
+  await refillVideosFromFolder();
+  console.log('Server running on port 3001');
+  startStream();
+});
+
+function startStream() {
+  const staticFolder = 'static';
+  if (fs.existsSync(staticFolder)) {
+    fs.rmSync(staticFolder, { recursive: true });
+  }
+  fs.mkdirSync(staticFolder);
+  playNextVideo();
+}
+
+function playNextVideo() {
+  if (queue.length > 0) {
+
+    const indx = (currentVideoCount + 1) % queue.length
+    const currentVideo = queue[indx];
+
+    const command = getStreamCommand(currentVideo);
+    currentProcess = spawn('ffmpeg', command);
+
+    currentProcess.stderr.on('data', (data) => {
+      console.error(`FFmpeg error: ${data}`);
+    });
+
+    // console.log(currentIndex, videoFile);
+    currentProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.log(">> [ SKIP ] >>", currentVideo.name, code, currentVideo.duration)
+      }
+
+      removeOldTSFiles("./static/");
+      currentVideoCount++;
+      playNextVideo();
+    });
+  }
+}
+
+function getStreamCommand(video) {
+  const nextVideo = "next";
+  return [
+    '-nostdin',
+    '-re',
+    '-i',
+    video.path,
+    '-i',
+    'overlay.png',
+    '-c:v',
+    'libx264',
+    '-c:a',
+    'copy', // Add this line to copy the audio codec
+    "-loglevel",
+    "error",
+    '-filter_complex',
+    `scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
+    'overlay=0:0,' +
+    `drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
+    `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
+    `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(6):y=h-th-13,` +
+    `drawtext=fontsize=11:fontcolor=white:text='${"  0"+ video.duration.replace(/:/g, '\\:')}':x=(10):y=h-th-2,` +
+    `drawtext=fontsize=16:fontcolor=white:text='${video.name}':x=(w-tw-25):y=h-th-35,` +
+    `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
+    `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83[v]`,
+    '-map',
+    '[v]',
+    '-map',
+    '0:a',
+    '-hls_time',
+    '0.25',
+    '-hls_list_size',
+    '5',
+    '-f',
+    'hls',
+    '-segment_wrap',
+    '6',
+    '-hls_flags',
+    'delete_segments+append_list+omit_endlist',
+    'static/stream.m3u8',
+  ];
+}
+
+
+//-------------------
+
 function refillAds() {
   console.log("refill ads");
   adsQueue = fs.readdirSync(adsVideoFolder)
     .filter(file => file.endsWith('.mp4'));
-}
-
-function getFilesRecursively(dir, fileList = []) {
-  const files = fs.readdirSync(dir);
-
-  files.forEach(file => {
-    const filePath = path.join(dir, file);
-    const stat = fs.statSync(filePath);
-
-    if (stat.isDirectory()) {
-      getFilesRecursively(filePath, fileList);
-    } else {
-      fileList.push(filePath);
-    }
-  });
-
-  return fileList;
 }
 
 function refillQueue(folder = videoFolder) {
@@ -153,12 +254,12 @@ app.get('/refill', (req, res) => {
   res.send('refill the queue');
 });
 
-app.listen(3000, () => {
-  refillAds();
-  refillQueue();
-  console.log('Server running on port 3000');
-  start();
-});
+// app.listen(3000, () => {
+//   refillAds();
+//   refillQueue();
+//   console.log('Server running on port 3000');
+//   start();
+// });
 
 // ----------- garbage ⬇️
 
@@ -266,4 +367,57 @@ function getFfmpegCommand(videoPath, videoName, nextVideo) {
     'delete_segments+append_list+omit_endlist',
     'static/stream.m3u8',
   ];
+}
+
+
+function getVideoDuration(videoPath) {
+  return new Promise((resolve, reject) => {
+    const ffprobe = spawn('ffprobe', [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      "-sexagesimal",
+      videoPath,
+    ]);
+
+    let duration = '';
+
+    ffprobe.stdout.on('data', (data) => {
+      duration += data.toString();
+    });
+
+    ffprobe.on('error', (err) => {
+      reject(err);
+    });
+
+    ffprobe.on('close', (code) => {
+      if (code === 0) {
+
+        const formattedDuration = duration.toString().slice(0, 11)
+        resolve(formattedDuration);
+      } else {
+        reject(new Error(`ffprobe exited with code ${code}`));
+      }
+    });
+  });
+}
+
+function getFilesRecursively(dir, fileList = []) {
+  const files = fs.readdirSync(dir);
+
+  files.forEach(file => {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+
+    if (stat.isDirectory()) {
+      getFilesRecursively(filePath, fileList);
+    } else {
+      fileList.push(filePath);
+    }
+  });
+
+  return fileList;
 }
