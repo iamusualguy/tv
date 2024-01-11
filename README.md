@@ -1,6 +1,7 @@
 # tv
-
 simple tv channel like server which create a steamless stream out of your media library.
+
+> "I'm hungry, and the food's getting cold." 
 
 features:
 - weather on the screen
