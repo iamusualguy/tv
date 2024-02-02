@@ -2,6 +2,8 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { spawn, exec } = require('child_process');
+const ICAL = require('node-ical');
+const { isWithinInterval, parseISO, addDays, format } = require('date-fns');
 
 const app = express();
 
@@ -18,6 +20,65 @@ let currentProcess = null;
 
 let queue = [];
 let currentVideoCount = 0;
+
+
+function getCurrentEventForDate(icalFilePath, providedDate) {
+  try {
+    const data = require('fs').readFileSync(icalFilePath, 'utf8');
+    const parsedData = ICAL.parseICS(data);
+
+    for (const eventId in parsedData) {
+      if (parsedData.hasOwnProperty(eventId)) {
+        const event = parsedData[eventId];
+        const startDate = event.start.toISOString()
+        const endDate = event.end.toISOString();
+        console.log("::::::::::::", startDate, endDate);
+        if (event.rrule && typeof event.rrule === 'object') {
+          const futureOccurrences = [];
+
+          // Generate future occurrences within a reasonable time frame (adjust as needed)
+          for (let i = 0; i < 365; i++) {
+            const occurrenceDate = addDays(startDate, i);
+            const occurrenceEndDate = addDays(endDate, i);
+            if (isWithinInterval(providedDate, { start: occurrenceDate, end: occurrenceEndDate })) {
+              console.log("yo", occurrenceDate, providedDate);
+              futureOccurrences.push(occurrenceDate);
+            }
+          }
+          if (futureOccurrences.length > 0) {
+            // If there are future occurrences, return the event
+            return event;
+          }
+
+        } else {
+          if (isWithinInterval(providedDate, { start: startDate, end: endDate })) {
+            // If no recurrence rule or invalid RRULE, check if it's a one-time event
+            return event;
+          }
+        }
+      }
+    }
+
+    // If no current event is found for the provided date, return undefined
+    return undefined;
+  } catch (error) {
+    console.error('Error reading or parsing the iCal file:', error);
+    return undefined;
+  }
+}
+
+function refillSchedule() {
+
+  const icalFilePath = 'tv-cal.ics';
+  const providedDate = Date.now(); // Replace with the date you want to check
+  const currentEvent = getCurrentEventForDate(icalFilePath, providedDate);
+
+  if (currentEvent) {
+    console.log('Current Event:', currentEvent.summary, currentEvent);
+  } else {
+    console.log('No current event found for the provided date.');
+  }
+}
 
 async function getVideosFromFolder(folder) {
   const fileExtensionRegex = /\.(mp4|webm)$/i;
@@ -48,9 +109,10 @@ async function refillVideosFromFolder(folder = videoFolder) {
 }
 
 app.listen(3001, async () => {
-  await refillVideosFromFolder();
-  console.log('Server running on port 3001');
-  startStream();
+  refillSchedule();
+  // await refillVideosFromFolder();
+  // console.log('Server running on port 3001');
+  // startStream();
 });
 
 function startStream() {
@@ -109,7 +171,7 @@ function getStreamCommand(video) {
     `drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
     `drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
     `drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(6):y=h-th-13,` +
-    `drawtext=fontsize=11:fontcolor=white:text='${"  0"+ video.duration.replace(/:/g, '\\:')}':x=(10):y=h-th-2,` +
+    `drawtext=fontsize=11:fontcolor=white:text='${"  0" + video.duration.replace(/:/g, '\\:')}':x=(10):y=h-th-2,` +
     `drawtext=fontsize=16:fontcolor=white:text='${video.name}':x=(w-tw-25):y=h-th-35,` +
     `drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
     `drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83[v]`,
