@@ -3,11 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const ICAL = require('node-ical');
-const { isWithinInterval, parseISO, addDays, format } = require('date-fns');
+const { isWithinInterval, addDays, parse, getTime, addMilliseconds } = require('date-fns');
 
 const app = express();
 
-const videoFolder = './video';
+const videoFolder = './video/';
 const adsVideoFolder = './video/ads';
 const series = './video/series';
 const adsFreq = 2; // how often to show ads 
@@ -32,24 +32,21 @@ function getCurrentEventForDate(icalFilePath, providedDate) {
         const event = parsedData[eventId];
         const startDate = event.start.toISOString()
         const endDate = event.end.toISOString();
-        console.log("::::::::::::", startDate, endDate);
         if (event.rrule && typeof event.rrule === 'object') {
-          const futureOccurrences = [];
-
-          // Generate future occurrences within a reasonable time frame (adjust as needed)
+          // Generate future occurrences within a reasonable time frame
           for (let i = 0; i < 365; i++) {
             const occurrenceDate = addDays(startDate, i);
             const occurrenceEndDate = addDays(endDate, i);
             if (isWithinInterval(providedDate, { start: occurrenceDate, end: occurrenceEndDate })) {
-              console.log("yo", occurrenceDate, providedDate);
-              futureOccurrences.push(occurrenceDate);
+              // console.log("yo",
+              //   occurrenceDate,
+              //   providedDate,
+              //   event.rrule.options.interval,
+              //   event.summary,
+              // );
+              return event;
             }
           }
-          if (futureOccurrences.length > 0) {
-            // If there are future occurrences, return the event
-            return event;
-          }
-
         } else {
           if (isWithinInterval(providedDate, { start: startDate, end: endDate })) {
             // If no recurrence rule or invalid RRULE, check if it's a one-time event
@@ -67,14 +64,53 @@ function getCurrentEventForDate(icalFilePath, providedDate) {
   }
 }
 
-function refillSchedule() {
-
+const schedule = [];
+async function refillSchedule() {
   const icalFilePath = 'tv-cal.ics';
-  const providedDate = Date.now(); // Replace with the date you want to check
+
+  const libraryObject = {};
+
+  const contentTypes = ["music", "series", "ads"];
+  for (let cont of contentTypes) {
+    libraryObject[cont] = {
+      playedCount: 0,
+      videos: await getVideosFromFolder(videoFolder + cont)
+    }
+  }
+
+  let providedDate = Date.now(); // Replace with the date you want to check
   const currentEvent = getCurrentEventForDate(icalFilePath, providedDate);
 
+  let prevDuration = 0;
+  for (let i = 0; i < 2000; i++) {
+    const currentEvent = getCurrentEventForDate(icalFilePath, providedDate);
+    if (currentEvent) {
+      const bibrary = libraryObject[currentEvent.summary];
+      if (bibrary) {
+        const newVideo = bibrary.videos[bibrary.playedCount++ % bibrary.videos.length];
+        if (newVideo) {
+          schedule.push(newVideo);
+          // prevDuration = newVideo.duration;
+
+          providedDate = addMilliseconds(providedDate, hmmssSSSToMS(newVideo.duration))
+
+          // hmmssSSSToMS(prevDuration);
+          // const parsedTime = parse(prevDuration, 'H:mm:ss.SSS', new Date());
+          // const milliseconds = getTgetTime(parsedTime);
+          // console.log(">>>>> ms:", hmmssSSSToMS(prevDuration));
+          console.log("::>>", newVideo.folderName, providedDate, newVideo.name);
+        }
+      }
+
+    }
+  }
+
   if (currentEvent) {
-    console.log('Current Event:', currentEvent.summary, currentEvent);
+    console.log('Current Event:', currentEvent.summary);
+    // for (let i = 0; i < 20; i++) {
+
+    // }
+    // cool now we need to populate video from correct folder
   } else {
     console.log('No current event found for the provided date.');
   }
@@ -86,7 +122,7 @@ async function getVideosFromFolder(folder) {
   const newVideoQueue = getFilesRecursively(folder)
     .filter(file => fileExtensionRegex.test(file))
     .map(async (video) => {
-      const duration = (await getVideoDuration(video))
+      const duration = (await getVideoFormattedDuration(video))
       let videoName = path.parse(video).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, '');
       const folderName = path.basename(path.dirname(video));
       return {
@@ -109,7 +145,7 @@ async function refillVideosFromFolder(folder = videoFolder) {
 }
 
 app.listen(3001, async () => {
-  refillSchedule();
+  await refillSchedule();
   // await refillVideosFromFolder();
   // console.log('Server running on port 3001');
   // startStream();
@@ -432,7 +468,7 @@ function getFfmpegCommand(videoPath, videoName, nextVideo) {
 }
 
 
-function getVideoDuration(videoPath) {
+function getVideoFormattedDuration(videoPath) {
   return new Promise((resolve, reject) => {
     const ffprobe = spawn('ffprobe', [
       '-v',
@@ -482,4 +518,19 @@ function getFilesRecursively(dir, fileList = []) {
   });
 
   return fileList;
+}
+
+function hmmssSSSToMS(timeString) {
+  const [hours, minutes, seconds] = timeString.split(':');
+  const milliseconds = seconds.includes('.') ? seconds.split('.')[1] : '0';
+  const secondsWithoutMilliseconds = seconds.includes('.') ? seconds.split('.')[0] : seconds;
+
+  // Step 2: Convert to milliseconds
+  const hoursInMilliseconds = parseInt(hours) * 60 * 60 * 1000;
+  const minutesInMilliseconds = parseInt(minutes) * 60 * 1000;
+  const secondsInMilliseconds = parseInt(secondsWithoutMilliseconds) * 1000;
+  const totalMilliseconds = hoursInMilliseconds + minutesInMilliseconds + secondsInMilliseconds + parseInt(milliseconds);
+
+  // console.log(totalMilliseconds);
+  return totalMilliseconds;
 }
