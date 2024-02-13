@@ -11,12 +11,15 @@ const {
 	addMilliseconds,
 } = require("date-fns");
 
+const {
+	getCurrentEventForDate,
+	getStreamCommand,
+} = require("./utils.js")
+
 const app = express();
 
 const videoFolder = "./video/";
-const adsVideoFolder = "./video/ads";
-const series = "./video/series";
-const adsFreq = 2; // how often to show ads
+const adsFreq = 4; // how often to show ads
 const resolution = "720:480";
 const tvName = "usual tv";
 let videoQueue = [];
@@ -24,114 +27,57 @@ let adsQueue = [];
 let currentIndex = 0;
 let currentProcess = null;
 
-let queue = [];
-let currentVideoCount = 0;
-
-function getCurrentEventForDate(icalFilePath, providedDate) {
-	try {
-		const data = require("fs").readFileSync(icalFilePath, "utf8");
-		const parsedData = ICAL.parseICS(data);
-
-		for (const eventId in parsedData) {
-			if (parsedData.hasOwnProperty(eventId)) {
-				const event = parsedData[eventId];
-				const startDate = event.start.toISOString();
-				const endDate = event.end.toISOString();
-				if (event.rrule && typeof event.rrule === "object") {
-					// Generate future occurrences within a reasonable time frame
-					for (let i = 0; i < 365; i++) {
-						const occurrenceDate = addDays(startDate, i);
-						const occurrenceEndDate = addDays(endDate, i);
-						if (
-							isWithinInterval(providedDate, {
-								start: occurrenceDate,
-								end: occurrenceEndDate,
-							})
-						) {
-							// console.log("yo",
-							//   occurrenceDate,
-							//   providedDate,
-							//   event.rrule.options.interval,
-							//   event.summary,
-							// );
-							return event;
-						}
-					}
-				} else {
-					if (
-						isWithinInterval(providedDate, { start: startDate, end: endDate })
-					) {
-						// If no recurrence rule or invalid RRULE, check if it's a one-time event
-						return event;
-					}
-				}
-			}
-		}
-
-		// If no current event is found for the provided date, return undefined
-		return undefined;
-	} catch (error) {
-		console.error("Error reading or parsing the iCal file:", error);
-		return undefined;
-	}
-}
-
 const schedule = [];
-async function refillSchedule() {
-	const icalFilePath = "tv-cal.ics";
-
-	const libraryObject = {};
-
+let currentVideoCount = 0;
+async function getVideos() {
+	const libraryObject = {}
 	const contentTypes = ["music", "series", "ads"];
 	for (let cont of contentTypes) {
 		libraryObject[cont] = {
 			playedCount: 0,
-			videos: await getVideosFromFolder(videoFolder + cont),
+			videos: await getVideosFromFolder(videoFolder, cont),
 		};
 	}
+	return libraryObject;
+}
 
-	let providedDate = Date.now(); // Replace with the date you want to check
-	const currentEvent = getCurrentEventForDate(icalFilePath, providedDate);
+async function refillSchedule() {
+	const icalFilePath = "tv-cal.ics";
 
-	let prevDuration = 0;
-	for (let i = 0; i < 2000; i++) {
-		const currentEvent = getCurrentEventForDate(icalFilePath, providedDate);
+	const libraryObject = getVideos();
+
+
+	let kindaCurrentDate = Date.now(); // probably better to add some seconds to adjust with schedule  generation time
+	console.log(libraryObject);
+	for (let i = 0; i < 10; i++) {
+		const currentEvent = getCurrentEventForDate(icalFilePath, kindaCurrentDate);
 		if (currentEvent) {
-			const bibrary = libraryObject[currentEvent.summary];
-			if (bibrary) {
-				const newVideo =
-					bibrary.videos[bibrary.playedCount++ % bibrary.videos.length];
-				if (newVideo) {
-					schedule.push(newVideo);
-					// prevDuration = newVideo.duration;
+			const bibrary = (i % adsFreq == 0) ? // we might show ads 
+				libraryObject["ads"] :
+				libraryObject[currentEvent.summary];
 
-					providedDate = addMilliseconds(
-						providedDate,
+			if (bibrary) {
+				const anotherIndex = (bibrary.playedCount++) % bibrary.videos.length;
+				const newVideo =
+					bibrary.videos[anotherIndex];
+				if (newVideo) {
+					schedule.push({ ...newVideo, start: kindaCurrentDate });
+					// increse the date by video duration
+					kindaCurrentDate = addMilliseconds(
+						kindaCurrentDate,
 						hmmssSSSToMS(newVideo.duration),
 					);
 
-					// hmmssSSSToMS(prevDuration);
-					// const parsedTime = parse(prevDuration, 'H:mm:ss.SSS', new Date());
-					// const milliseconds = getTgetTime(parsedTime);
-					// console.log(">>>>> ms:", hmmssSSSToMS(prevDuration));
-					console.log("::>>", newVideo.folderName, providedDate, newVideo.name);
+					console.log("::>>", anotherIndex, newVideo.folderName, kindaCurrentDate, newVideo.name, newVideo.type);
 				}
 			}
 		}
 	}
-
-	if (currentEvent) {
-		console.log("Current Event:", currentEvent.summary);
-		// for (let i = 0; i < 20; i++) {
-
-		// }
-		// cool now we need to populate video from correct folder
-	} else {
-		console.log("No current event found for the provided date.");
-	}
+	console.log(libraryObject);
 }
 
-async function getVideosFromFolder(folder) {
+async function getVideosFromFolder(videoFolder, cont) {
+	const folder = videoFolder + cont;
 	const fileExtensionRegex = /\.(mp4|webm)$/i;
 
 	const newVideoQueue = getFilesRecursively(folder)
@@ -143,6 +89,7 @@ async function getVideosFromFolder(folder) {
 				.name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, "");
 			const folderName = path.basename(path.dirname(video));
 			return {
+				type: cont,
 				path: video,
 				name: videoName,
 				duration: duration,
@@ -153,34 +100,32 @@ async function getVideosFromFolder(folder) {
 	return await Promise.all(newVideoQueue);
 }
 
-async function refillVideosFromFolder(folder = videoFolder) {
-	console.log("start refill folder: ", folder);
-	currentVideoCount = 0;
-	queue = await getVideosFromFolder(folder);
-	console.log("hehehehehehehe", queue);
-}
-
 app.listen(3001, async () => {
 	await refillSchedule();
 	// await refillVideosFromFolder();
-	// console.log('Server running on port 3001');
-	// startStream();
+	console.log('Server running on port 3001');
+	startStream();
 });
 
 function startStream() {
+	// clean the previous stream files
 	const staticFolder = "static";
 	if (fs.existsSync(staticFolder)) {
 		fs.rmSync(staticFolder, { recursive: true });
 	}
 	fs.mkdirSync(staticFolder);
+
 	playNextVideo();
 }
 
 function playNextVideo() {
-	if (queue.length > 0) {
-		const indx = (currentVideoCount + 1) % queue.length;
-		const currentVideo = queue[indx];
-
+	if (schedule.length > 0) {
+		if (currentVideoCount - 2 > schedule.length) {
+			refillSchedule();
+		}
+		const indx = (currentVideoCount + 1) % schedule.length;
+		const currentVideo = schedule[indx];
+		console.log(currentVideoCount, "::", currentVideo.name, currentVideo.type)
 		const command = getStreamCommand(currentVideo);
 		currentProcess = spawn("ffmpeg", command);
 
@@ -188,7 +133,6 @@ function playNextVideo() {
 			console.error(`FFmpeg error: ${data}`);
 		});
 
-		// console.log(currentIndex, videoFile);
 		currentProcess.on("close", (code) => {
 			if (code !== 0) {
 				console.log(
@@ -206,128 +150,7 @@ function playNextVideo() {
 	}
 }
 
-function getStreamCommand(video) {
-	const nextVideo = "next";
-	return [
-		"-nostdin",
-		"-re",
-		"-i",
-		video.path,
-		"-i",
-		"overlay.png",
-		"-c:v",
-		"libx264",
-		"-c:a",
-		"copy", // Add this line to copy the audio codec
-		"-loglevel",
-		"error",
-		"-filter_complex",
-		`scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
-			"overlay=0:0," +
-			`drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
-			`drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-			`drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(6):y=h-th-13,` +
-			`drawtext=fontsize=11:fontcolor=white:text='${
-				"  0" + video.duration.replace(/:/g, "\\:")
-			}':x=(10):y=h-th-2,` +
-			`drawtext=fontsize=16:fontcolor=white:text='${video.name}':x=(w-tw-25):y=h-th-35,` +
-			`drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
-			`drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83[v]`,
-		"-map",
-		"[v]",
-		"-map",
-		"0:a",
-		"-hls_time",
-		"0.25",
-		"-hls_list_size",
-		"5",
-		"-f",
-		"hls",
-		"-segment_wrap",
-		"6",
-		"-hls_flags",
-		"delete_segments+append_list+omit_endlist",
-		"static/stream.m3u8",
-	];
-}
-
 //-------------------
-
-function refillAds() {
-	console.log("refill ads");
-	adsQueue = fs
-		.readdirSync(adsVideoFolder)
-		.filter((file) => file.endsWith(".mp4"));
-}
-
-function refillQueue(folder = videoFolder) {
-	console.log("refill queue: ", folder);
-	getWeatherString();
-	currentIndex = 0;
-	videoQueue = getFilesRecursively(folder)
-		.filter((file) => file.endsWith(".mp4"))
-		.sort(() => (Math.random() > 0.5 ? 1 : -1));
-}
-
-function startNextVideo(showAd = false) {
-	if (videoQueue.length === 0) {
-		refillQueue();
-	}
-	if (videoQueue.length > 0) {
-		let videoFile = videoQueue[currentIndex];
-		let videoPath = path.join(videoFile);
-
-		let videoName = path
-			.parse(videoFile)
-			.name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, "");
-		if (showAd) {
-			const randomIndex = Math.floor(Math.random() * adsQueue.length);
-			videoFile = adsQueue[randomIndex];
-			console.log("show add: ", videoFile);
-			videoPath = path.join(adsVideoFolder, videoFile);
-			videoName =
-				"[AD] " +
-				path.parse(videoFile).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, "") +
-				" [AD]";
-		}
-
-		const nextVideo =
-			path
-				.parse(videoQueue[(currentIndex + 1) % videoQueue.length])
-				.name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, "") + " >>";
-
-		const command = getFfmpegCommand(videoPath, videoName, nextVideo);
-		currentProcess = spawn("ffmpeg", command);
-
-		currentProcess.stderr.on("data", (data) => {
-			console.error(`FFmpeg error: ${data}`);
-		});
-
-		console.log(currentIndex, videoFile);
-		currentProcess.on("close", (code) => {
-			if (code !== 0) {
-				console.log(">> SKIP >>", videoFile, code);
-			}
-			removeOldTSFiles("./static/");
-
-			if (showAd !== true && currentIndex % adsFreq == 0) {
-				startNextVideo(true);
-			} else {
-				currentIndex = (currentIndex + 1) % videoQueue.length;
-				startNextVideo();
-			}
-		});
-	}
-}
-
-function start() {
-	const staticFolder = "static";
-	if (fs.existsSync(staticFolder)) {
-		fs.rmSync(staticFolder, { recursive: true });
-	}
-	fs.mkdirSync(staticFolder);
-	startNextVideo();
-}
 
 app.set("view engine", "ejs");
 app.set("views", __dirname + "/views");
@@ -344,8 +167,8 @@ app.get("/stick", (req, res) => {
 
 app.get("/", (req, res) => {
 	const myVariable = "idx";
-	const items = videoQueue.map((x, idx) =>
-		currentIndex === idx ? `> ${idx}: ${x}` : `   ${idx} ${x}`,
+	const items = schedule.map((x, idx) =>
+		currentIndex === idx ? `> ${idx}: ${x.name} ${x.start}` : `   ${idx} ${x.name}  ${x.start}`,
 	);
 	res.render("index", { items, myVariable });
 });
@@ -377,16 +200,10 @@ app.get("/skip", (req, res) => {
 });
 
 app.get("/refill", (req, res) => {
-	refillQueue();
+	refillSchedule();
 	res.send("refill the queue");
 });
 
-// app.listen(3000, () => {
-//   refillAds();
-//   refillQueue();
-//   console.log('Server running on port 3000');
-//   start();
-// });
 
 // ----------- garbage ⬇️
 
@@ -452,57 +269,6 @@ function getWeatherString() {
 	});
 }
 
-function getFfmpegCommand(videoPath, videoName, nextVideo) {
-	const formattedDate = new Date().toLocaleDateString("en-US", {
-		month: "2-digit",
-		day: "2-digit",
-	});
-
-	return [
-		"-nostdin",
-		"-re",
-		"-i",
-		videoPath,
-		"-i",
-		"overlay.png",
-		// '-i',
-		// 'weather.png',
-		"-c:v",
-		"libx264",
-		"-c:a",
-		"copy", // Add this line to copy the audio codec
-		"-loglevel",
-		"error",
-		"-filter_complex",
-		`scale=${resolution}:force_original_aspect_ratio=decrease,pad=${resolution}:(ow-iw)/2:(oh-ih)/2,` +
-			"overlay=0:0," +
-			// 'overlay=(w+90):(-30),' +
-			`drawtext=fontsize=25:fontcolor=white:text='${tvName}':x=25:y=25,` +
-			`drawtext=fontsize=18:fontfile=font.ttf:fontcolor=white:textfile=weather.txt:x=w-tw+20:y=(-35),` +
-			`drawtext=fontsize=11:fontcolor=white:text='%{pts\\:hms}':x=(10):y=h-th-2,` +
-			`drawtext=fontsize=16:fontcolor=white:text='${videoName}':x=(w-tw-25):y=h-th-35,` +
-			`drawtext=fontsize=13:fontcolor=white:text='${nextVideo}':x=(w-tw-25):y=h-th-19,` +
-			`drawtext=fontsize=18:fontcolor=white:text='%{localtime\\:%T}':x=35:y=83,` +
-			`drawtext=fontsize=18:fontcolor=white:text='${
-				formattedDate + ""
-			}':x=15:y=55[v]`,
-		"-map",
-		"[v]",
-		"-map",
-		"0:a",
-		"-hls_time",
-		"0.25",
-		"-hls_list_size",
-		"5",
-		"-f",
-		"hls",
-		"-segment_wrap",
-		"6",
-		"-hls_flags",
-		"delete_segments+append_list+omit_endlist",
-		"static/stream.m3u8",
-	];
-}
 
 function getVideoFormattedDuration(videoPath) {
 	return new Promise((resolve, reject) => {
