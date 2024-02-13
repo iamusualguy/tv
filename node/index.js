@@ -44,7 +44,7 @@ async function getVideos() {
 async function refillSchedule() {
 	const icalFilePath = "tv-cal.ics";
 
-	const libraryObject = getVideos();
+	const libraryObject = await getVideos();
 
 
 	let kindaCurrentDate = Date.now(); // probably better to add some seconds to adjust with schedule  generation time
