@@ -27,7 +27,7 @@ let adsQueue = [];
 let currentIndex = 0;
 let currentProcess = null;
 
-const schedule = [];
+let schedule = [];
 let currentVideoCount = 0;
 async function getVideos() {
 	const libraryObject = {}
@@ -43,13 +43,18 @@ async function getVideos() {
 
 async function refillSchedule() {
 	const icalFilePath = "tv-cal.ics";
-
+	schedule = [];
+	getWeatherString();
 	const libraryObject = await getVideos();
 
 
 	let kindaCurrentDate = Date.now(); // probably better to add some seconds to adjust with schedule  generation time
 	console.log(libraryObject);
-	for (let i = 0; i < 10; i++) {
+	kindaCurrentDate = addMilliseconds(
+		kindaCurrentDate,
+		0,
+	);
+	for (let i = 0; i < 15; i++) {
 		const currentEvent = getCurrentEventForDate(icalFilePath, kindaCurrentDate);
 		if (currentEvent) {
 			const bibrary = (i % adsFreq == 0) ? // we might show ads 
@@ -61,12 +66,14 @@ async function refillSchedule() {
 				const newVideo =
 					bibrary.videos[anotherIndex];
 				if (newVideo) {
+				
 					schedule.push({ ...newVideo, start: kindaCurrentDate });
-					// increse the date by video duration
 					kindaCurrentDate = addMilliseconds(
 						kindaCurrentDate,
 						hmmssSSSToMS(newVideo.duration),
 					);
+					// increse the date by video duration
+					
 
 					console.log("::>>", anotherIndex, newVideo.folderName, kindaCurrentDate, newVideo.name, newVideo.type);
 				}
@@ -95,7 +102,7 @@ async function getVideosFromFolder(videoFolder, cont) {
 				duration: duration,
 				folderName: folderName,
 			};
-		});
+		}).sort(() => Math.random() - 0.5);
 
 	return await Promise.all(newVideoQueue);
 }
@@ -123,7 +130,7 @@ function playNextVideo() {
 		if (currentVideoCount - 2 > schedule.length) {
 			refillSchedule();
 		}
-		const indx = (currentVideoCount + 1) % schedule.length;
+		const indx = (currentVideoCount) % schedule.length;
 		const currentVideo = schedule[indx];
 		console.log(currentVideoCount, "::", currentVideo.name, currentVideo.type)
 		const command = getStreamCommand(currentVideo);
@@ -155,38 +162,38 @@ function playNextVideo() {
 app.set("view engine", "ejs");
 app.set("views", __dirname + "/views");
 
-app.get("/stick", (req, res) => {
-	const getName = (file) =>
-		path.parse(file).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, "");
-	const status = {
-		current: getName(videoQueue[currentIndex]),
-		next: getName(videoQueue[currentIndex + 1] ?? " "),
-	};
-	res.send(status);
-});
+// app.get("/stick", (req, res) => {
+// 	const getName = (file) =>
+// 		path.parse(file).name.replace(/[^ a-zA-Z0-9-\u0400-\u04FF]/g, "");
+// 	const status = {
+// 		current: getName(videoQueue[currentIndex]),
+// 		next: getName(videoQueue[currentIndex + 1] ?? " "),
+// 	};
+// 	res.send(status);
+// });
 
 app.get("/", (req, res) => {
 	const myVariable = "idx";
 	const items = schedule.map((x, idx) =>
-		currentIndex === idx ? `> ${idx}: ${x.name} ${x.start}` : `   ${idx} ${x.name}  ${x.start}`,
+	currentVideoCount === idx ? `> ${idx}: ${x.name} ${x.start}` : `   ${idx} ${x.name}  ${x.start}`,
 	);
 	res.render("index", { items, myVariable });
 });
 
-app.get("/c", (req, res) => {
-	const items = videoQueue.map((x, idx) =>
-		currentIndex === idx ? `> ${idx}: ${x}` : `   ${idx} ${x}`,
-	);
-	res.render("control", { items });
-});
+// app.get("/c", (req, res) => {
+// 	const items = videoQueue.map((x, idx) =>
+// 		currentIndex === idx ? `> ${idx}: ${x}` : `   ${idx} ${x}`,
+// 	);
+// 	res.render("control", { items });
+// });
 
 // serve stream
 app.use("/static", express.static("static"));
 
 app.get("/next/:number", (req, res) => {
 	serverVariable = parseInt(req.params.number);
-	currentIndex = serverVariable - 1;
-	console.log("next track is", serverVariable, videoQueue[serverVariable]);
+	currentVideoCount = serverVariable - 1;
+	console.log("next track is", serverVariable, schedule[serverVariable]);
 	if (currentProcess) {
 		currentProcess.kill();
 	}
