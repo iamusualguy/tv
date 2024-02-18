@@ -85,7 +85,7 @@ async function refillSchedule() {
 
 async function getVideosFromFolder(videoFolder, cont) {
 	const folder = videoFolder + cont;
-	const fileExtensionRegex = /\.(mp4|webm)$/i;
+	const fileExtensionRegex = /\.(mp4|avi|mkv|webm)$/i;
 
 	const newVideoQueue = getFilesRecursively(folder)
 		.filter((file) => fileExtensionRegex.test(file))
