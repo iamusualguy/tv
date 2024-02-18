@@ -1,7 +1,7 @@
 Weather report: Amsterdam
 
-     \\  /       Partly cloudy
-   _ /"".-.     +9(7) °C       
-     \\_(   ).   ↑ 22 km/h      
-     /(___(__)  10 km          
-                0.1 mm         
+       .-.      Light drizzle and rain
+      (   ).    +10(7) °C      
+     (___(__)   → 33 km/h      
+      ‘ ‘ ‘ ‘   10 km          
+     ‘ ‘ ‘ ‘    1.8 mm         

@@ -14,6 +14,7 @@ const {
 const {
 	getCurrentEventForDate,
 	getStreamCommand,
+	downloadICSFile
 } = require("./utils.js")
 
 const app = express();
@@ -31,7 +32,7 @@ let schedule = [];
 let currentVideoCount = 0;
 async function getVideos() {
 	const libraryObject = {}
-	const contentTypes = ["music", "series", "ads"];
+	const contentTypes = ["music", "series", "ads", "movies"];
 	for (let cont of contentTypes) {
 		libraryObject[cont] = {
 			playedCount: 0,
@@ -59,7 +60,7 @@ async function refillSchedule() {
 		kindaCurrentDate,
 		0,
 	);
-	for (let i = 0; i < 15; i++) {
+	for (let i = 0; i < 10; i++) {
 		const currentEvent = getCurrentEventForDate(icalFilePath, kindaCurrentDate);
 		if (currentEvent) {
 			const bibrary = (i % adsFreq == 0) ? // we might show ads 
@@ -80,12 +81,12 @@ async function refillSchedule() {
 					// increse the date by video duration
 					
 
-					console.log("::>>", anotherIndex, newVideo.folderName, kindaCurrentDate, newVideo.name, newVideo.type);
+					// console.log("::>>", anotherIndex, newVideo.folderName, kindaCurrentDate, newVideo.name, newVideo.type);
 				}
 			}
 		}
 	}
-	console.log(libraryObject);
+	// console.log(libraryObject);
 }
 
 async function getVideosFromFolder(videoFolder, cont) {
@@ -132,7 +133,8 @@ function startStream() {
 
 function playNextVideo() {
 	if (schedule.length > 0) {
-		if (currentVideoCount - 2 > schedule.length) {
+		if (currentVideoCount +1 > schedule.length) {
+			console.log("------------------------------refill");
 			refillSchedule();
 		}
 		const indx = (currentVideoCount) % schedule.length;

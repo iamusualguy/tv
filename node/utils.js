@@ -9,7 +9,6 @@ const {
     getTime,
     addMilliseconds,
 } = require("date-fns");
-const fs = require("fs");
 function getCurrentEventForDate(icalFilePath, providedDate) {
     try {
         const data = require("fs").readFileSync(icalFilePath, "utf8");
