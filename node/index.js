@@ -43,7 +43,11 @@ async function getVideos() {
 
 async function refillSchedule() {
 	currentVideoCount = 0;
+	const icalUrl = "http://p156-caldav.icloud.com/published/2/MTA1NDkzODI2MjIxMDU0OWjYcVzPlJ-bMh8_MxkxVHOHozMWy1QYDXBhD3eb4Gh-NtR1bPE6bi9-WUUxn4Rro6xLn38DtRcT_0ozD9JlahE";
 	const icalFilePath = "tv-cal.ics";
+
+	await downloadICSFile(icalUrl,icalFilePath);
+
 	schedule = [];
 	getWeatherString();
 	const libraryObject = await getVideos();

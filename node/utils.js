@@ -1,4 +1,7 @@
 const ICAL = require("node-ical");
+const axios = require('axios');
+const fs = require('fs');
+
 const {
     isWithinInterval,
     addDays,
@@ -103,5 +106,26 @@ function getStreamCommand(video) {
     ];
 }
 
+async function downloadICSFile(url, path) {
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'stream',
+        });
 
-module.exports = { getCurrentEventForDate, getStreamCommand };
+        const writer = fs.createWriteStream(path);
+
+        response.data.pipe(writer);
+
+        return new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+        
+    } catch (error) {
+        console.error('Error downloading the .ics file:', error);
+    }
+}
+
+module.exports = { getCurrentEventForDate, getStreamCommand, downloadICSFile };
