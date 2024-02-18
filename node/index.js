@@ -42,6 +42,7 @@ async function getVideos() {
 }
 
 async function refillSchedule() {
+	currentVideoCount = 0;
 	const icalFilePath = "tv-cal.ics";
 	schedule = [];
 	getWeatherString();
