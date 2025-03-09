@@ -6,3 +6,8 @@ node_modules
 node/static
 target
 todo.md
+/go/static
+/radio/music
+radio/.DS_Store
+.DS_Store
+/tv/static
