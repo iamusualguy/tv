@@ -141,17 +141,36 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	go func() {
-		log.Println("HTTP server listening on :8080")
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		log.Println("HTTP server listening on :8582")
+		log.Fatal(http.ListenAndServe(":8582", nil))
 	}()
 
 	// Wait a bit for the HTTP server to start
 	time.Sleep(500 * time.Millisecond)
 
-	// Search for MP3 files in the current directory
-	mp3Files, err := filepath.Glob("*.mp3")
+	var mp3Files []string
+
+	// Walk through the directory and subdirectories
+	err = filepath.Walk("./", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		// Check if the file is an MP3
+		if !info.IsDir() && filepath.Ext(path) == ".mp3" {
+			mp3Files = append(mp3Files, path)
+		}
+		return nil
+	})
+
 	if err != nil {
-		log.Fatalf("Error searching for MP3 files: %v", err)
+		log.Fatal(err)
+	}
+
+	// Print the found MP3 files
+	fmt.Println("Found MP3 files:")
+	for _, file := range mp3Files {
+		fmt.Println(file)
 	}
 
 	if len(mp3Files) == 0 {
@@ -164,3 +183,4 @@ func main() {
 	// Keep the program running indefinitely
 	select {}
 }
+
