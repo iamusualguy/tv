@@ -7,15 +7,17 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"text/template"
 )
 
 const ollamaURL = "http://localhost:11434/api/generate"
-const model = "llama3.2" // change to your model
+const model = "yandex/YandexGPT-5-Lite-8B-instruct-GGUF:latest" // change to your model like: llama3.2
 
 type OllamaRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
+	Model   string                 `json:"model"`
+	Prompt  string                 `json:"prompt"`
+	Stream  bool                   `json:"stream"`
+	Options map[string]interface{} `json:"options"`
 }
 
 type OllamaResponse struct {
@@ -23,8 +25,9 @@ type OllamaResponse struct {
 }
 
 func main() {
-	prompt, err := os.ReadFile("prompt.txt")
-	fmt.Println("You says:", string(prompt))
+	prompt, err := os.ReadFile("prompt-ru.txt")
+	result, err := fillTemplate(string(prompt), "dew - Лузер")
+	fmt.Println("You says:", string(result))
 
 	if err != nil {
 		fmt.Println("Error reading file:", err)
@@ -33,8 +36,11 @@ func main() {
 
 	reqBody := OllamaRequest{
 		Model:  model,
-		Prompt: string(prompt),
+		Prompt: string(result),
 		Stream: false,
+		Options: map[string]interface{}{
+			"temperature": 1,
+		},
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -62,3 +68,25 @@ func main() {
 
 	fmt.Println("Ollama says:", ollamaResp.Response)
 }
+
+func fillTemplate(templateStr, thing string) (string, error) {
+	tmpl, err := template.New("template").Parse(templateStr)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	data := struct {
+		Thing string
+	}{
+		Thing: thing,
+	}
+
+	err = tmpl.Execute(&buf, data)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
