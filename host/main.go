@@ -11,7 +11,7 @@ import (
 )
 
 const ollamaURL = "http://localhost:11434/api/generate"
-const model = "yandex/YandexGPT-5-Lite-8B-instruct-GGUF:latest" // change to your model like: llama3.2
+const model = "llama3.2" // "yandex/YandexGPT-5-Lite-8B-instruct-GGUF:latest" // change to your model like: llama3.2
 
 type OllamaRequest struct {
 	Model   string                 `json:"model"`
@@ -25,8 +25,8 @@ type OllamaResponse struct {
 }
 
 func main() {
-	prompt, err := os.ReadFile("prompt-ru.txt")
-	result, err := fillTemplate(string(prompt), "dew - Лузер")
+	prompt, err := os.ReadFile("prompt.txt")
+	result, err := fillTemplate(string(prompt), "Dance party. Dance! Dance! - Love Anthem")
 	fmt.Println("You says:", string(result))
 
 	if err != nil {
@@ -39,7 +39,7 @@ func main() {
 		Prompt: string(result),
 		Stream: false,
 		Options: map[string]interface{}{
-			"temperature": 1,
+			"temperature": 0.51,
 		},
 	}
 
@@ -89,4 +89,3 @@ func fillTemplate(templateStr, thing string) (string, error) {
 
 	return buf.String(), nil
 }
-
