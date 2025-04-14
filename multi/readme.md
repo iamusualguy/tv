@@ -1,4 +1,26 @@
 
+sooooo how to start it
+
+you need opentts in docker: docker run -it -p 5500:5500 synesthesiam/opentts:ru  
+ollama  OLLAMA_HOST=0.0.0.0 ollama serve; 
+ffmpeg
+golang
+
+run ollama with model of your choice
+run opentts with language of your choice
+use correct adress and names in host.go
+run go programm (or build and run)
+
+# how to run
+
+go run . ./path/to/music
+
+# todo
+run with -i as path to music
+add config to set the adresses for opentts and ollama and model names
+
+
+
 
  ffmpeg -re -i "Аватарка.mp3" \
  -vn -c:a aac \

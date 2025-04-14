@@ -1,0 +1,6 @@
+{
+  "ollamaURL": "http://localhost:11434/api/generate",
+  "model": "yandex/YandexGPT-5-Lite-8B-instruct-GGUF:latest",
+  "ttsURL": "http://localhost:5500/api/tts",
+  "promptFileName": "prompt-ru.txt"
+}

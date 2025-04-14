@@ -11,8 +11,32 @@ import (
 	"text/template"
 )
 
-const ollamaURL = "http://localhost:11434/api/generate"
-const model = "yandex/YandexGPT-5-Lite-8B-instruct-GGUF:latest" // change to your model like: llama3.2
+type Config struct {
+	OllamaURL      string `json:"ollamaURL"`
+	Model          string `json:"model"`
+	TTSURL         string `json:"ttsURL"`
+	PromptFileName string `json:"promptFileName"`
+}
+
+const configFile = "config.json"
+
+var config Config
+
+func loadConfig() error {
+	// Read the config file using os.ReadFile
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Unmarshal the config JSON into the Config struct
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return nil
+}
 
 type OllamaRequest struct {
 	Model   string                 `json:"model"`
@@ -26,8 +50,21 @@ type OllamaResponse struct {
 }
 
 func createIntroText(trackInfo string) string {
-	prompt, err := os.ReadFile("prompt-ru.txt")
+	// Read the config file using os.ReadFile
+	data, err := os.ReadFile(configFile)
 	if err != nil {
+		fmt.Println("failed to read config file: %w", err)
+	}
+
+	// Unmarshal the config JSON into the Config struct
+	err = json.Unmarshal(data, &config)
+	if err != nil {
+		fmt.Println("failed to unmarshal config: %w", err)
+	}
+	prompt, err := os.ReadFile(config.PromptFileName)
+	if err != nil {
+		fmt.Println("file name is:", string(config.PromptFileName))
+
 		fmt.Println("Error reading prompt file:", err)
 		return trackInfo
 	}
@@ -38,10 +75,10 @@ func createIntroText(trackInfo string) string {
 		return trackInfo
 	}
 
-	fmt.Println("You says:", string(result))
+	// fmt.Println("You says:", string(result))
 
 	reqBody := OllamaRequest{
-		Model:  model,
+		Model:  config.Model,
 		Prompt: string(result),
 		Stream: false,
 		Options: map[string]interface{}{
@@ -55,7 +92,7 @@ func createIntroText(trackInfo string) string {
 		return trackInfo
 	}
 
-	resp, err := http.Post(ollamaURL, "application/json", bytes.NewBuffer(body))
+	resp, err := http.Post(config.OllamaURL, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Println("Request failed:", err)
 		return trackInfo
@@ -68,7 +105,7 @@ func createIntroText(trackInfo string) string {
 		return trackInfo
 	}
 
-	fmt.Println("--- says:", string(respBody))
+	// fmt.Println("--- says:", string(respBody))
 
 	var ollamaResp OllamaResponse
 	if err := json.Unmarshal(respBody, &ollamaResp); err != nil {
@@ -106,7 +143,7 @@ func textToSpeechAndSave(text string, outputFilePath string) error {
 	encodedText := url.QueryEscape(text)
 
 	// Construct the full URL with all parameters
-	requestURL := fmt.Sprintf("http://localhost:5500/api/tts?voice=larynx:hajdurova-glow_tts&lang=en&vocoder=high&denoiserStrength=0.001&text=%s", encodedText)
+	requestURL := fmt.Sprintf("%s?voice=glow-speak:ru_nikolaev&lang=ru&vocoder=high&denoiserStrength=0.001&text=%s", config.TTSURL, encodedText)
 
 	// Make the HTTP GET request
 	resp, err := http.Get(requestURL)

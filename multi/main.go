@@ -183,6 +183,13 @@ func startStreamingLoop(mp3Files []string) {
 }
 
 func main() {
+
+	// Get directory path from command line argument or use current dir
+	searchPath := "./"
+	if len(os.Args) > 1 {
+		searchPath = os.Args[1]
+	}
+
 	// Create static folder
 	os.MkdirAll("static", os.ModePerm)
 
@@ -212,7 +219,7 @@ func main() {
 	var mp3Files []string
 
 	// Walk through the directory and subdirectories
-	err = filepath.Walk("./", func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Println(err)
 			return err
