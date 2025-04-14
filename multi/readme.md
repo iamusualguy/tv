@@ -15,6 +15,9 @@ run go programm (or build and run)
 
 go run . ./path/to/music
 
+# how to build
+go build -o radioHost
+
 # todo
 run with -i as path to music
 add config to set the adresses for opentts and ollama and model names
