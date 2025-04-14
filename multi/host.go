@@ -12,7 +12,7 @@ import (
 )
 
 const ollamaURL = "http://localhost:11434/api/generate"
-const model = "llama3.2" // "yandex/YandexGPT-5-Lite-8B-instruct-GGUF:latest" // change to your model like: llama3.2
+const model = "yandex/YandexGPT-5-Lite-8B-instruct-GGUF:latest" // change to your model like: llama3.2
 
 type OllamaRequest struct {
 	Model   string                 `json:"model"`
@@ -26,7 +26,7 @@ type OllamaResponse struct {
 }
 
 func createIntroText(trackInfo string) string {
-	prompt, err := os.ReadFile("prompt.txt")
+	prompt, err := os.ReadFile("prompt-ru.txt")
 	if err != nil {
 		fmt.Println("Error reading prompt file:", err)
 		return trackInfo
@@ -106,7 +106,7 @@ func textToSpeechAndSave(text string, outputFilePath string) error {
 	encodedText := url.QueryEscape(text)
 
 	// Construct the full URL with all parameters
-	requestURL := fmt.Sprintf("http://localhost:5500/api/tts?voice=coqui-tts:en_vctk&speakerId=p236&lang=en&vocoder=high&denoiserStrength=0.001&text=%s", encodedText)
+	requestURL := fmt.Sprintf("http://localhost:5500/api/tts?voice=larynx:hajdurova-glow_tts&lang=en&vocoder=high&denoiserStrength=0.001&text=%s", encodedText)
 
 	// Make the HTTP GET request
 	resp, err := http.Get(requestURL)

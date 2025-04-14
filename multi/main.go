@@ -43,13 +43,6 @@ func streamMP3(filePath string, wg *sync.WaitGroup) {
 	metadataString := extractMetadataString(filePath)
 	log.Printf("Now playing: %s", metadataString)
 
-	introText := createIntroText(metadataString)
-	errGen := textToSpeechAndSave(introText, "output.wav")
-	if errGen != nil {
-		fmt.Println("Error generation host into:", errGen)
-		return
-	}
-
 	outputDir := "./static"
 	playlistFile := filepath.Join(outputDir, "stream.m3u8")
 
@@ -74,7 +67,7 @@ func streamMP3(filePath string, wg *sync.WaitGroup) {
 			// 2. Take intro audio
 			// 3. Mix them, lowering music volume during intro and then restore
 			"[0:a]volume=1[music];"+
-				"[1:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=4,adelay=1000|1000[intro];"+
+				"[1:a]aformat=sample_rates=44100:channel_layouts=stereo,volume=5,adelay=1000|1000[intro];"+
 				"[music][intro]amix=inputs=2:duration=first:dropout_transition=3[aout]",
 			"-map", "[aout]", // Map the output of the filter
 			"-c:a", "aac",
@@ -147,12 +140,29 @@ func startStreamingLoop(mp3Files []string) {
 		var wg sync.WaitGroup
 
 		// Process MP3 files one by one
-		for _, mp3File := range mp3Files {
-			wg.Add(1)
-			// Start streaming the current MP3 file and wait for it to complete or be skipped
-			streamMP3(mp3File, &wg)
+		for i := range mp3Files {
+			currentFile := mp3Files[i]
+			var nextFile string
+			if i+1 < len(mp3Files) {
+				nextFile = mp3Files[i+1]
 
-			// Check if we need to stop processing due to a shutdown signal
+				// Preload next track's intro
+				go func(file string) {
+					meta := extractMetadataString(file)
+					intro := createIntroText(meta)
+					err := textToSpeechAndSave(intro, "next_intro.wav")
+					if err != nil {
+						log.Printf("Error preparing next intro: %v", err)
+					} else {
+						log.Printf("Preloaded intro for next track: %s", file)
+					}
+				}(nextFile)
+			}
+
+			wg.Add(1)
+			streamMP3(currentFile, &wg)
+
+			// Check if the stream was skipped
 			processLock.Lock()
 			wasKilled := (currentProcess == nil)
 			processLock.Unlock()
@@ -160,8 +170,12 @@ func startStreamingLoop(mp3Files []string) {
 			if wasKilled {
 				log.Println("Streaming was interrupted. Moving to the next file.")
 			}
-		}
 
+			// Rename preloaded intro to be used by FFmpeg
+			if _, err := os.Stat("next_intro.wav"); err == nil {
+				os.Rename("next_intro.wav", "output.wav")
+			}
+		}
 		// Wait for all processes to complete
 		wg.Wait()
 		log.Println("All MP3 files have been processed")
