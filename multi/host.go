@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"text/template"
+	"time"
 )
 
 type Config struct {
@@ -49,6 +51,14 @@ type OllamaResponse struct {
 	Response string `json:"response"`
 }
 
+// Create a local random generator with a random seed
+var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+// GenerateRandomValue returns a float64 between 0.2 and 1.0
+func GenerateRandomValue() float64 {
+	return 0.2 + rng.Float64()*(1.0-0.2)
+}
+
 func createIntroText(trackInfo string) string {
 	// Read the config file using os.ReadFile
 	data, err := os.ReadFile(configFile)
@@ -82,7 +92,7 @@ func createIntroText(trackInfo string) string {
 		Prompt: string(result),
 		Stream: false,
 		Options: map[string]interface{}{
-			"temperature": 1,
+			"temperature": GenerateRandomValue(),
 		},
 	}
 
@@ -139,11 +149,13 @@ func fillTemplate(templateStr, thing string) (string, error) {
 }
 
 func textToSpeechAndSave(text string, outputFilePath string) error {
+	text = transliterate(text)
+	fmt.Println(text)
 	// URL encode the text parameter
 	encodedText := url.QueryEscape(text)
 
 	// Construct the full URL with all parameters
-	requestURL := fmt.Sprintf("%s?voice=glow-speak:ru_nikolaev&lang=ru&vocoder=high&denoiserStrength=0.001&text=%s", config.TTSURL, encodedText)
+	requestURL := fmt.Sprintf("%s?speaker=baya&sample_rate=48000&pitch=50&rate=50&text=%s", config.TTSURL, encodedText)
 
 	// Make the HTTP GET request
 	resp, err := http.Get(requestURL)

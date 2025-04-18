@@ -2,6 +2,10 @@
 sooooo how to start it
 
 you need opentts in docker: docker run -it -p 5500:5500 synesthesiam/opentts:ru  
+
+new setup uses https://github.com/twirapp/silero-tts-api-server 
+docker run --rm -p 8000:8000 twirapp/silero-tts-api-server 
+
 ollama  OLLAMA_HOST=0.0.0.0 ollama serve; 
 ffmpeg
 golang
